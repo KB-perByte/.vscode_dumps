@@ -1,0 +1,14 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Module",
+            "type": "python",
+            "request": "launch",
+            "module": "tox",
+            "args": ["--ansible", "--gh-matrix", "--matrix-scope", "unit", "--conf", "tox-ansible.ini"],
+            "cwd": "/foundation/collections/ansible_collections/cisco/ios",
+            "justMyCode": true
+        }
+    ]
+}
