@@ -1,0 +1,30 @@
+
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Attach to Server",
+        "type": "node",
+        "request": "attach",
+        "timeout": 30000,
+        "port": 6009,
+        "restart": true,
+        "sourceMaps": true,
+        "outFiles": ["${workspaceRoot}/out/server/**/*.ts"],
+        "protocol": "inspector",
+        "trace": true,
+      },
+      // {
+      //   "name": "Language Server E2E Test",
+      //   "type": "extensionHost",
+      //   "request": "launch",
+      //   "runtimeExecutable": "${execPath}",
+      //   "args": [
+      //     "--extensionDevelopmentPath=${workspaceRoot}",
+      //     "--extensionTestsPath=${workspaceRoot}/client/out/test/index",
+      //     "${workspaceRoot}/client/testFixture"
+      //   ],
+      //   "outFiles": ["${workspaceRoot}/client/out/test/**/*.js"]
+      // }
+    ],
+  }
