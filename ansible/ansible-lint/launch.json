@@ -5,9 +5,17 @@
             "name": "Python: Module",
             "type": "python",
             "request": "launch",
-            "module": "ansible_lint",
+            "module": "ansiblelint",
+            "args": [
+                "/collections/ansible_collections/cisco/ios"
+                // "/eos_interfaces.yml"
+                // "--list-write-rules",
+                // "-c",
+                // "/collections/Ansible/test_lint/.ansible-lint"
+            ],
+            // "cwd": "/collections/Ansible/ansible-lint/examples",
             "cwd": "${workspaceFolder}",
-            "justMyCode": false
+            "justMyCode": false,
         }
     ]
 }
