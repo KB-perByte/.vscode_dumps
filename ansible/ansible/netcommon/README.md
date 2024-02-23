@@ -57,7 +57,7 @@ If your environment looks something like this ^^^^ you should be good.
 
 #### Where place what!
 
-Look for the path where your clone (editable) installed ansible sits and open VS code at the same location.
+Look for the path where your cloned/(editable)/installed ansible sits and open VS code at the same location.
 and add the below-mentioned launch.json under .vscode
 
 ```
@@ -79,25 +79,14 @@ and add the below-mentioned launch.json under .vscode
 
 ```
 
-**\*** START HERE #TODO
+JSYK, F5 will generally help you to debug the application and ctrl + F5 will execute the application in VS Code.
+With this, Whether you are debugging ansible network content or just simple ansible content it should be VS Code debugable.
+![Alt text](./images/normal_f5.png?raw=true "Debugging ansible")
 
-#### Configuring VS code:
+Now, it would need a decent understanding of ansible-connection process and the ansible-playbook processes (plural), to take things forward.
 
-_(Use the same setting with a different port for debugging multiple modules)_
-Once we are in vs code with the specific module we wish to debug, either use the debug option followed by the settings sign tagged ‘Open launch.json’ to generate the launch configuration file
-
-![Alt text](./images/image_debugPanel.png?raw=true "Debugging option")
-
-_Or_
-
-Use the following commands to the root of the collection for generating the same
-
-```
-┌[machine@machine]-(~/.a/c/a/c/i)
-└> mkdir .vscode
-┌[machine@machine]-(~/.a/c/a/c/i/.vscode)
-└> nano launch.json
-```
+We would need to open ansible.netcommon in another VS Code instance or add it to a workspace. As it would need a different .vscode configuration.
+Once, we have ansible.netcommon in our IDE, we can ...
 
 Drop the below config in your launch.json
 
@@ -117,11 +106,10 @@ Drop the below config in your launch.json
 }
 ```
 
-Get debugpy and install it within the scope of your environment.
+and go the `..collections/ansible_collections/ansible/netcommon/plugins/connection/network_cli.py`
+Considering we are dealing with network_cli based connection. It can be anything netconf, grpc, httpapi.
 
-`pip install debugpy`
-
-To start debugging go to the intended module and put the following lines on top of it,
+We have to be smart about how we want to place each line of this block in network_cli code.
 
 ```
 import debugpy
@@ -129,39 +117,72 @@ debugpy.listen(3000)
 debugpy.wait_for_client()
 ```
 
+As ansible-playbook process that is spawn by the ansible-connection process itself, deals with the json rpc requests ultimately does all the api calls that take the execution forward. We have to make sure `debugpy.listen(3000)` is executed only once, else right after the first json rpc request happens, we end up with a `Address already in use` error.
+
+Now, how to split the debugpy chunk within the network_cli code to make things work.
+
+1. The `import debugpy` statement goes anywhere around the top-level imports
+2. `debugpy.listen(3000)` is the line that should run just once, and we need to make sure that during our whole execution, we should never invoke it more than once, if done we would end up with the error `address already in use` and the debugging stops abruptly. The workaround is we either introduce a decorator that flags if it is executed once and place the listen(3000) inside it. But in network_cli.py we already have a decorator `ensure_connect`. Where we can gracefully place it in.
+
+```
+def ensure_connect(func):
+    @wraps(func)
+    def wrapped(self, *args, **kwargs):
+        if not self._connected:
+            debugpy.listen(3000) <--------------------------------------------------------------- we hack it here.
+            self._connect()
+        self.update_cli_prompt_context()
+        return func(self, *args, **kwargs)
+    return wrapped
+```
+
+3. The last `debugpy.wait_for_client()` should go anywhere you want to start the debug journey in netcommon. In our case we use the send method to hold this line, as it helps us look at the interaction that happens by the json rpc server to it's client.
+
+```
+    @ensure_connect
+    def send(
+        self,
+        command,
+        prompt=None,
+        answer=None,
+        newline=True,
+        sendonly=False,
+        prompt_retry_check=False,
+        check_all=False,
+        strip_prompt=True,
+    ):
+        """
+        Sends the command to the device in the opened shell
+        """
+        debugpy.wait_for_client() <---------------------------------------------------------------- we hacked it here.
+```
+
+NOW WE ARE READY.
+
+Now if we want to debug netcommon you can either run ansible-playbook command via cli and just do F5 in the vscode instance that has the debugpy statements in ansible.netcommon
+OR
+We can start ansible via ctrl+F5 and do F5 with ansible.netcommon
+
+### Ansible via Vs Code
+
+![Alt text](./images/ctrl_f5.png?raw=true "Ansible runs via Vs Code")
+
+### ansible.netcommon debugging via Vs Code
+
+![Alt text](./images/netcommon_f5.png?raw=true "Debug netcommon runs via Vs Code")
+
 Well, the last step
 
-Your inventory file should contain the specified variable
+Your inventory file should contain the specified variable, it helps.
 
 ```
 [all:vars]
 ansible_network_import_modules=True
 ```
 
-Now right after running your playbook using ansible-playbook
-
-```
-[machine@machine]-(~/W/debug_example)
-└> ansible-playbook debug_playbook.yml
-```
-
-Expect the execution to be stuck at the task execution level waiting for you to manually start the module and add it to port 3000 (or any configured port).
-
-Navigating to the module where debugpy import was used press F5 to start debugging
-
-![Alt text](./images/image_debugging.png?raw=true "Debugging demo")
-
-At this point, the debugger should hit your break points when in process.
-
-For debugging ansible-navigator check a cool doc [here]: https://github.com/shatakshiiii/debuggingNavigator/blob/main/README.md
-
 Refer to the VS code debugging guide for more information-
 https://code.visualstudio.com/docs/editor/debugging
 
-#### Works with:
-
-- older Network Modules
-- newer Network Resource Modules
-- execution with Ansible Navigator
+Special mentions @NilashishC @Qalthos @ganeshrn
 
 ## Happy Debugging !!!
